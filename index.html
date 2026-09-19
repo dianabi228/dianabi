@@ -1,40 +1,267 @@
-<!-- Контейнер, который выравнивает кнопку по центру экрана -->
-<div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
-    <button id="rickBtn" style="padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #ff0000; color: white; border: none; border-radius: 8px; font-weight: bold;">
-        Нажми на меня! 🎬
-    </button>
-</div>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Собери ключи</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background: #111;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-<!-- Контейнер для видео (скрыт по умолчанию) -->
-<div id="videoContainer" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 9999; justify-content: center; align-items: center;">
-    <!-- Видеофайл подключен с именем rikrol.mp4 -->
-    <video id="rickVideo" width="100%" height="100%" style="object-fit: contain;" controls autoplay>
-        <source src="rikrol.mp4" type="video/mp4">
-        Ваш браузер не поддерживает видео.
-    </video>
-</div>
-<script>
-    const btn = document.getElementById('rickBtn');
-    const container = document.getElementById('videoContainer');
-    const video = document.getElementById('rickVideo');
+        /* Счетчик ключей */
+        #counter {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 8px;
+            z-index: 10;
+        }
 
-    btn.addEventListener('click', () => {
-        // Показываем контейнер с видео
-        container.style.display = 'flex';
+        /* Кнопка-ключ */
+        #keyBtn {
+            position: absolute;
+            padding: 15px 25px;
+            font-size: 20px;
+            cursor: pointer;
+            background-color: #ffd700;
+            color: black;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(255, 215, 0, 0.4);
+            transition: left 0.1s, top 0.1s, transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+            z-index: 20;
+        }
+
+        #keyBtn:active {
+            transform: scale(0.95);
+        }
+
+        /* Висячий замок по центру */
+        #padlock {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 100px;
+            z-index: 15;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #padlock.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        /* Контейнер для видео (рикролл) */
+        #videoContainer {
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            background: black; 
+            z-index: 9999; 
+            justify-content: center; 
+            align-items: center;
+        }
+
+        /* Финальный экран (текст + вирус) */
+        #finishScreen {
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            background: black; 
+            z-index: 9999; 
+            flex-direction: column;
+            justify-content: center; 
+            align-items: center;
+        }
+
+        #finishText {
+            font-size: 50px;
+            font-weight: bold;
+            color: #ff3333;
+            text-shadow: 0 0 20px rgba(255, 51, 51, 0.6);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        /* Кнопка "Сыграть заново" */
+        .restartBtn {
+            display: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #ff0000;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 0, 0, 0.6);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 10000;
+        }
+
+        #videoRestartBtn {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="counter">Собрано ключей: <span id="score">0</span> / 10</div>
+
+    <!-- Замок в центре -->
+    <div id="padlock">🔒</div>
+
+    <!-- Кнопка-ключ -->
+    <button id="keyBtn">🔑 Нажми ключ!</button>
+
+    <!-- Контейнер для видео -->
+    <div id="videoContainer">
+        <video id="rickVideo" width="100%" height="100%" style="object-fit: contain;" controls autoplay>
+            <source src="rikrol.mp4" type="video/mp4">
+            Ваш браузер не поддерживает видео.
+        </video>
+        <button id="videoRestartBtn" class="restartBtn">🔄 Сыграть заново</button>
+    </div>
+
+    <!-- Финальный экран (текст + вирус) -->
+    <div id="finishScreen">
+        <div id="finishText">Все, свободен!</div>
+        <button id="textRestartBtn" class="restartBtn">🔄 Сыграть заново</button>
+    </div>
+
+    <script>
+        let score = 0;
+        const totalKeys = 10;
+        const keyBtn = document.getElementById('keyBtn');
+        const scoreSpan = document.getElementById('score');
+        const padlock = document.getElementById('padlock');
         
-        // Перезапускаем видео с самого начала
-        video.currentTime = 0;
-        video.play().catch(error => {
-            console.log("Автозапуск заблокирован браузером:", error);
+        const videoContainer = document.getElementById('videoContainer');
+        const video = document.getElementById('rickVideo');
+        const videoRestartBtn = document.getElementById('videoRestartBtn');
+
+        const finishScreen = document.getElementById('finishScreen');
+        const textRestartBtn = document.getElementById('textRestartBtn');
+
+        function moveKey() {
+            const maxX = window.innerWidth - keyBtn.offsetWidth - 50;
+            const maxY = window.innerHeight - keyBtn.offsetHeight - 50;
+            
+            const randomX = Math.max(20, Math.floor(Math.random() * maxX));
+            const randomY = Math.max(80, Math.floor(Math.random() * maxY));
+
+            keyBtn.style.left = randomX + 'px';
+            keyBtn.style.top = randomY + 'px';
+        }
+
+        moveKey();
+
+        keyBtn.addEventListener('click', () => {
+            score++;
+            scoreSpan.textContent = score;
+
+            if (score < totalKeys) {
+                moveKey();
+            } else {
+                document.getElementById('counter').style.display = 'none';
+                
+                keyBtn.style.left = '50%';
+                keyBtn.style.top = '50%';
+                keyBtn.style.transform = 'translate(-50%, -50%)';
+
+                padlock.classList.add('show');
+
+                setTimeout(() => {
+                    keyBtn.style.transform = 'translate(-50%, -50%) scale(3)';
+                    keyBtn.style.opacity = '0';
+                }, 500);
+
+                // Читаем из памяти, какой финал должен быть следующим (0 — рикролл, 1 — вирус)
+                let mode = localStorage.getItem('finaleMode') || '0';
+
+                setTimeout(() => {
+                    padlock.style.display = 'none';
+                    keyBtn.style.display = 'none';
+
+                    if (mode === '0') {
+                        // Включаем рикролл и переключаем режим на следующий раз на вирус ('1')
+                        localStorage.setItem('finaleMode', '1');
+
+                        videoContainer.style.display = 'flex';
+                        video.currentTime = 0;
+                        video.play().catch(error => {
+                            console.log("Автозапуск заблокирован браузером:", error);
+                        });
+
+                        setTimeout(() => {
+                            videoRestartBtn.style.display = 'block';
+                            setTimeout(() => { videoRestartBtn.style.opacity = '1'; }, 50);
+                        }, 5000);
+
+                    } else {
+                        // Включаем вирус и переключаем режим на следующий раз на рикролл ('0')
+                        localStorage.setItem('finaleMode', '0');
+
+                        finishScreen.style.display = 'flex';
+
+                        // Запускаем жесткое вирусное мигание через 1 секунду
+                        setTimeout(() => {
+                            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffffff', '#000000'];
+                            
+                            setInterval(() => {
+                                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                                finishScreen.style.background = randomColor;
+
+                                const randomX = (Math.random() - 0.5) * 30;
+                                const randomY = (Math.random() - 0.5) * 30;
+                                finishScreen.style.transform = `translate(${randomX}px, ${randomY}px)`;
+                            }, 120);
+                        }, 1000);
+
+                        setTimeout(() => {
+                            textRestartBtn.style.display = 'block';
+                            setTimeout(() => { textRestartBtn.style.opacity = '1'; }, 50);
+                        }, 5000);
+                    }
+
+                    // Полноэкранный режим
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen();
+                    } else if (document.documentElement.webkitRequestFullscreen) {
+                        document.documentElement.webkitRequestFullscreen();
+                    } else if (document.documentElement.msRequestFullscreen) {
+                        document.documentElement.msRequestFullscreen();
+                    }
+
+                }, 1500);
+            }
         });
 
-        // Включаем полноэкранный режим сайта
-        if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen();
-        } else if (document.documentElement.webkitRequestFullscreen) { /* Safari */
-            document.documentElement.webkitRequestFullscreen();
-        } else if (document.documentElement.msRequestFullscreen) { /* IE11 */
-            document.documentElement.msRequestFullscreen();
-        }
-    });
-</script>
+        // Кнопки перезапуска
+        videoRestartBtn.addEventListener('click', () => location.reload());
+        textRestartBtn.addEventListener('click', () => location.reload());
+    </script>
+</body>
+</html>
